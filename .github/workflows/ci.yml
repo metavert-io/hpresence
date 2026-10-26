@@ -1,0 +1,43 @@
+# Build, clippy (warnings are errors) and tests on an Apple-silicon Mac,
+# the only platform the sampler runs on, then assemble the package with
+# build.sh and check that the manifest parses. CodeQL runs separately
+# (default setup).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: Rust (macOS, Apple silicon)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Rust (stable, per rust-toolchain.toml)
+        run: rustup toolchain install stable --profile minimal --component clippy --target aarch64-apple-darwin --no-self-update
+      - name: Build
+        run: cargo build --locked
+      - name: Clippy
+        run: cargo clippy --all-targets --locked -- -D warnings
+      - name: Test
+        run: cargo test --locked
+      - name: Package (build.sh)
+        run: ./build.sh
+      - name: Manifest parses
+        run: jq empty hearthember.json dist/hearthember.json
