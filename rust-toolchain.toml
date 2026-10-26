@@ -1,0 +1,5 @@
+# The ember runs on Apple Silicon Macs only; build.sh targets
+# aarch64-apple-darwin. The minimum Rust is `rust-version` in Cargo.toml.
+[toolchain]
+channel = "stable"
+targets = ["aarch64-apple-darwin"]

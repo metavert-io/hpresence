@@ -1,0 +1,22 @@
+# hpresence — a Hearthloom ember, deliberately OUTSIDE the hearthloom
+# repo: it exercises the exact third-party developer path (own repo, own
+# deps, talks only to the loopback HTTP API with its scoped key).
+[package]
+name = "hpresence"
+version = "0.7.1"
+edition = "2021"
+rust-version = "1.78"
+description = "Presence sampler for Hearthloom: frontmost app, idle state and, for browsers you choose, website domains, summarised once a day per Mac"
+license = "MIT"
+repository = "https://github.com/metavert-io/hpresence"
+publish = false
+
+# standalone — never absorbed into a parent workspace
+[workspace]
+
+[dependencies]
+serde_json = "1"
+
+[profile.release]
+strip = true
+lto = true

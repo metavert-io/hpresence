@@ -1,0 +1,38 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  body { font: 13px/1.45 ui-monospace, monospace; margin: 8px 10px;
+         background: transparent; color: var(--ink, #ddd); }
+  .big { font-size: 1.7em; }
+  .faint { color: var(--ink-faint, #888); }
+  .row { display: flex; justify-content: space-between; }
+</style></head>
+<body>
+  <div id="w" class="faint">…</div>
+<script src="hearth.js"></script>
+<script>
+(async () => {
+  const h = await window.hearth;
+  const hosts = (await h.kv("hosts")) || [];
+  const states = (await Promise.all(
+    hosts.map((n) => h.kv(`state:${n}`)))).filter(Boolean);
+  const state = states.length ? {
+    total_active_secs: states.reduce((a, s) => a + (s.total_active_secs || 0), 0),
+    per_app: states.reduce((m, s) => {
+      for (const [app, secs] of Object.entries(s.per_app || {})) m[app] = (m[app] || 0) + secs;
+      return m;
+    }, {}),
+  } : null;
+  const el = document.getElementById("w");
+  if (!state || !state.total_active_secs) {
+    el.textContent = "no screen time recorded yet today";
+    return;
+  }
+  const top = Object.entries(state.per_app || {}).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  el.classList.remove("faint");
+  el.innerHTML = `<div class="big">${hm(state.total_active_secs)}</div>
+    <div class="faint" style="margin-bottom:6px">at the computer today</div>` +
+    top.map(([app, s]) => `<div class="row"><span>${esc(app)}</span><span class="faint">${hm(s)}</span></div>`).join("");
+})();
+</script>
+</body></html>

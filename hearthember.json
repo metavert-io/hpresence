@@ -1,0 +1,72 @@
+{
+  "protocol": 1,
+  "name": "hpresence",
+  "version": "0.7.1",
+  "publisher": "jon",
+  "description": "Records which app is frontmost, whether you're idle and, only in browsers you choose, each site's domain (never its path or title), as daily totals per Mac; no screenshots, audio or keystrokes.",
+  "scopes": [
+    "ingest"
+  ],
+  "launch": {
+    "darwin": "bin/hpresence"
+  },
+  "sync": "mirror",
+  "runner": "per-node",
+  "placement": "local",
+  "ui": {
+    "visualize": [
+      {
+        "label": "Presence map",
+        "page": "heat.html",
+        "dial": true
+      }
+    ],
+    "desk": [
+      {
+        "label": "screen time today",
+        "page": "widget.html",
+        "height": 170
+      }
+    ],
+    "card": [
+      {
+        "label": "View presence data",
+        "page": "index.html"
+      }
+    ]
+  },
+  "config": [
+    {
+      "key": "interval_secs",
+      "label": "sample every (seconds)",
+      "type": "number",
+      "default": 30,
+      "help": "10–300; how often presence is checked"
+    },
+    {
+      "key": "ignore",
+      "label": "ignored apps (never counted)",
+      "type": "list",
+      "default": [
+        "loginwindow",
+        "ScreenSaverEngine"
+      ]
+    },
+    {
+      "key": "track_browsers",
+      "label": "track websites in these browsers",
+      "type": "list",
+      "default": [],
+      "help": "Off unless you list browsers here, one per line: Google Chrome, Brave Browser, Microsoft Edge, Arc, Chromium, Safari. macOS asks once per browser to let hpresence control it (an Automation prompt); decline and that browser counts as an app only. Only the domain of http(s) pages is kept. Chrome, Brave, Edge, Arc and Chromium: only windows that report themselves as normal are read, so incognito and private windows are skipped. Safari can't report private windows, so they would be recorded too: add Safari only if you don't browse privately in it. Firefox can't share its tab and always counts as an app only."
+    },
+    {
+      "key": "exclude_domains",
+      "label": "never record these sites",
+      "type": "list",
+      "help": "One per line, e.g. example.com (covers its subdomains too). Stronger than the vault: an excluded site is never written anywhere; the time still counts toward the browser app."
+    }
+  ],
+  "requires": {
+    "host": ">=0.5.71"
+  }
+}

@@ -1,0 +1,185 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Presence map</title>
+<style>
+  body { font: 14px/1.5 ui-monospace, monospace; margin: 20px auto; max-width: 920px;
+         background: var(--bg, transparent); color: var(--ink, #ddd); }
+  h1 { font-family: ui-serif, serif; font-weight: 600; margin-bottom: 4px; }
+  .faint { color: var(--ink-faint, #888); }
+  .chart { margin: 18px 0; }
+  .chart svg { width: 100%; height: auto; }
+  /* chart-svg text is styled by the DASHBOARD's stylesheet — inside
+     the sandbox we style those classes ourselves or text goes black */
+  .hl-chart text { fill: var(--ink, #ddd); }
+  .chart-title-text { font: 600 15px ui-serif, serif; }
+  .chart-tick { font: 11px ui-monospace, monospace; }
+  #tip { position: fixed; pointer-events: none; display: none; z-index: 9;
+         background: var(--card, #222); color: var(--ink, #ddd);
+         border: 1px solid var(--line, #444); border-radius: 6px;
+         padding: 6px 10px; font-size: 12px; max-width: 260px;
+         box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+</style></head>
+<body>
+  <h1>Presence map</h1>
+  <p class="faint" id="span-note">Spin the dial above to pick the window.</p>
+  <div id="apps" class="chart"><p class="faint">loading…</p></div>
+  <div id="sites" class="chart"></div>
+  <div id="punch" class="chart"></div>
+  <div id="tip"></div>
+<script src="hearth.js"></script>
+<script src="/assets/chart-svg.js"></script>
+<script>
+(async () => {
+  const h = await window.hearth;
+  const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const cache = {}; // "host/YYYY-MM" → month doc
+
+  const monthsBetween = (from, to) => {
+    const out = [];
+    let [y, m] = [Number(from.slice(0, 4)), Number(from.slice(5, 7))];
+    const end = to.slice(0, 7);
+    for (let i = 0; i < 120; i++) {
+      const key = `${y}-${String(m).padStart(2, "0")}`;
+      out.push(key);
+      if (key === end) break;
+      m += 1; if (m > 12) { m = 1; y += 1; }
+    }
+    return out;
+  };
+
+  async function loadDays(from, to) {
+    const hosts = (await h.kv("hosts")) || [];
+    const days = []; // {date, per_app, per_hour, per_domain, total}
+    for (const host of hosts) {
+      for (const month of monthsBetween(from, to)) {
+        const key = `${host}/${month}`;
+        if (!(key in cache)) {
+          cache[key] = await h.fileGet(`history/${host}/${month}.json`);
+        }
+        const doc = cache[key];
+        if (!doc?.days) continue;
+        for (const [date, d] of Object.entries(doc.days)) {
+          if (date >= from && date <= to) days.push({ date, ...d });
+        }
+      }
+    }
+    return days;
+  }
+
+  async function render(from, to) {
+    document.getElementById("span-note").textContent =
+      `${from} → ${to} — spin the dial above to change the window.`;
+    const days = await loadDays(from, to);
+    const appsEl = document.getElementById("apps");
+    const punchEl = document.getElementById("punch");
+    if (!days.length) {
+      appsEl.innerHTML = "<p class='faint'>no presence recorded in this window.</p>";
+      punchEl.innerHTML = "";
+      return;
+    }
+
+    // — the treemap: aggregate share of the window, per app —
+    const totals = {};
+    for (const d of days) {
+      for (const [app, s] of Object.entries(d.per_app || {})) {
+        totals[app] = (totals[app] || 0) + s;
+      }
+    }
+    const tdata = Object.entries(totals)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 18)
+      .map(([app, secs]) => ({ app, minutes: Math.round(secs / 60) }));
+    appsEl.innerHTML = buildChartSVG({
+      type: "treemap",
+      title: "where the time went (minutes per app)",
+      data: tdata,
+      nameKey: "app", valueKey: "minutes",
+    });
+
+    // — the websites treemap (domains merge across browsers) —
+    const sitesEl = document.getElementById("sites");
+    const dtotals = {};
+    for (const d of days) {
+      for (const [dom, s] of Object.entries(d.per_domain || {})) {
+        dtotals[dom] = (dtotals[dom] || 0) + s;
+      }
+    }
+    const sdata = Object.entries(dtotals)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 18)
+      .map(([site, secs]) => ({ site, minutes: Math.round(secs / 60) }));
+    if (sdata.length) {
+      sitesEl.innerHTML = buildChartSVG({
+        type: "treemap",
+        title: "where the time went on the web (minutes per site)",
+        data: sdata,
+        nameKey: "site", valueKey: "minutes",
+      });
+    } else {
+      // website capture is opt-in: no saved browser list means it's off
+      const cfg = (await h.kv("config")) || {};
+      const on = Array.isArray(cfg.track_browsers) && cfg.track_browsers.length > 0;
+      sitesEl.innerHTML = on
+        ? "<p class='faint'>no website time recorded in this window.</p>"
+        : "<p class='faint'>website time is off. To turn it on, list your browsers under " +
+          "“track websites in these browsers” in hpresence's configure… form " +
+          "(☰ → Integrations → embers); macOS then asks once per browser.</p>";
+    }
+
+    // — hour-of-day punchcard — month files can still hold days copied
+    // in from before hourly detail existed (no per_hour): skip those
+    const withHours = days.filter((d) => d.per_hour && Object.keys(d.per_hour).length);
+    if (!withHours.length) {
+      punchEl.innerHTML = "<p class='faint'>no hour-of-day detail in this window.</p>";
+      return;
+    }
+    const punch = {}; // "wd|hh" → secs
+    for (const d of withHours) {
+      const wd = WD[new Date(`${d.date}T12:00:00Z`).getUTCDay()];
+      for (const [hh, s] of Object.entries(d.per_hour)) {
+        punch[`${wd}|${hh}`] = (punch[`${wd}|${hh}`] || 0) + s;
+      }
+    }
+    const pdata = Object.entries(punch).map(([k, s]) => {
+      const [wd, hh] = k.split("|");
+      return { hour: hh, weekday: wd, minutes: Math.round(s / 60) };
+    });
+    punchEl.innerHTML = buildChartSVG({
+      type: "heatmap",
+      title: "when you're at the computer (hour × weekday)",
+      data: pdata,
+      xKey: "hour", yKey: "weekday", valueKey: "minutes",
+    });
+    if (withHours.length < days.length) {
+      punchEl.insertAdjacentHTML("beforeend",
+        `<p class="faint">punchcard covers ${withHours.length} of ${days.length} days (the rest have no hour-of-day detail).</p>`);
+    }
+  }
+
+  // instant tooltip for every chart cell (the native SVG <title> is
+  // slow and invisible on small treemap tiles) — reads the title text
+  const tip = document.getElementById("tip");
+  document.addEventListener("mousemove", (ev) => {
+    const rect = ev.target.closest?.("rect");
+    const t = rect?.querySelector("title")?.textContent;
+    if (!t) { tip.style.display = "none"; return; }
+    tip.textContent = t;
+    tip.style.display = "block";
+    tip.style.left = Math.min(ev.clientX + 14, innerWidth - 280) + "px";
+    tip.style.top = (ev.clientY + 14) + "px";
+  });
+
+  let timer;
+  h.onTimespan((from, to) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => render(from, to), 250);
+  });
+  // fallback if the shell never sends a window (older core): last 30 days
+  setTimeout(() => {
+    if (!document.getElementById("span-note").textContent.includes("→")) {
+      const iso = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+      render(iso(30), iso(0));
+    }
+  }, 1500);
+})();
+</script>
+</body></html>

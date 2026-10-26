@@ -1,0 +1,15 @@
+# Rust build output and the assembled package
+target/
+dist/
+
+# Release artifacts and signing keys never belong in the repo
+*.key
+*.zip
+*.sig
+
+# macOS
+.DS_Store
+
+# ---- Local only (never published) ----
+# A maintainer's private notes (release steps and the like).
+local/

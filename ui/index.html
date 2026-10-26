@@ -1,0 +1,56 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Presence</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 ui-monospace, monospace; margin: 24px auto; max-width: 720px;
+         background: var(--bg, transparent); color: var(--ink, #ddd); }
+  h1 { font-family: ui-serif, serif; font-weight: 600; }
+  .big { font-size: 2.4em; margin: 8px 0; }
+  .bar { height: 10px; border-radius: 5px; background: var(--accent, #e8833a); margin: 2px 0 10px; }
+  .row { display: flex; justify-content: space-between; }
+  .faint { color: var(--ink-faint, #888); }
+  .day { border-top: 1px solid var(--line, #333); padding: 6px 0; }
+</style></head>
+<body>
+  <h1>Presence</h1>
+  <p class="faint">Frontmost app, idle state and, only for browsers you turn on, website domains, sampled gently. No screenshots, no audio, no keys.</p>
+  <div id="today">waiting for the hearth…</div>
+  <h2 style="margin-top:28px">recent days</h2>
+  <div id="recent" class="faint">…</div>
+<script src="hearth.js"></script>
+<script>
+(async () => {
+  const h = await window.hearth;
+  const hosts = (await h.kv("hosts")) || [];
+  const states = (await Promise.all(
+    hosts.map((n) => h.kv(`state:${n}`)))).filter(Boolean);
+  const today = states.length ? states[0].date : null;
+  const state = states.length ? {
+    date: today,
+    total_active_secs: states.reduce((a, s) => a + (s.total_active_secs || 0), 0),
+    per_app: states.reduce((m, s) => {
+      for (const [app, secs] of Object.entries(s.per_app || {})) {
+        const key = states.length > 1 ? `${app} (${s.host})` : app;
+        m[key] = (m[key] || 0) + secs;
+      }
+      return m;
+    }, {}),
+  } : null;
+  const el = document.getElementById("today");
+  if (!state || !state.per_app) {
+    el.innerHTML = "<p class='faint'>no samples yet today — the sampler writes every couple of minutes.</p>";
+  } else {
+    const apps = Object.entries(state.per_app).sort((a, b) => b[1] - a[1]);
+    const max = apps[0]?.[1] || 1;
+    el.innerHTML = `<div class="big">${hm(state.total_active_secs || 0)} <span class="faint" style="font-size:0.4em">active on ${esc(state.date)}${states.length > 1 ? ` across ${states.length} machines` : ""}</span></div>` +
+      apps.slice(0, 12).map(([app, s]) => `
+        <div class="row"><span>${esc(app)}</span><span class="faint">${hm(s)}</span></div>
+        <div class="bar" style="width:${Math.max(3, 100 * s / max)}%"></div>`).join("");
+  }
+  const recent = (await h.kv("recent")) || [];
+  document.getElementById("recent").innerHTML = recent.slice().reverse().map((d) => `
+    <div class="day row"><span>${esc(d.date)}${d.host ? ` <span class="faint">· ${esc(d.host)}</span>` : ""}</span><span>${hm(d.total_active_secs || 0)}</span></div>`).join("")
+    || "<p>nothing yet — a day appears here once it completes.</p>";
+})();
+</script>
+</body></html>
