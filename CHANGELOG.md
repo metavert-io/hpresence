@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **The pages accept the dashboard's handshake only from its own origin.**
+  They already ignored messages from any window but the one embedding
+  them; a site that framed a page itself would have been that window. The
+  sender's origin must now match the page's, which only the dashboard's
+  does.
+
 ## 0.7.1 — 2026-10-26
 
 - **Website capture is opt-in.** `track_browsers` now defaults to no

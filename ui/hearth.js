@@ -4,7 +4,12 @@
    token — the ONLY authority this page has. Messages count only when
    they come from the window that embeds us (the dashboard shell);
    anything else that can reach this frame is ignored. */
-const fromShell = (ev) => window.parent !== window && ev.source === window.parent;
+// Two checks: the message comes from the window that embeds us, and that
+// window is the dashboard's own origin (the page and the dashboard are
+// served by the same node). The source check alone would accept a site
+// that frames this page itself.
+const fromShell = (ev) =>
+  window.parent !== window && ev.source === window.parent && ev.origin === location.origin;
 
 window.hearth = new Promise((resolve) => {
   addEventListener("message", (ev) => {
