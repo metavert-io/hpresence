@@ -62,8 +62,16 @@ impl Client {
                  data to {host}:{port} unencrypted"
             );
         }
-        let bracketed = if host.contains(':') { format!("[{host}]") } else { host };
-        let authority = if port == 80 { bracketed } else { format!("{bracketed}:{port}") };
+        let bracketed = if host.contains(':') {
+            format!("[{host}]")
+        } else {
+            host
+        };
+        let authority = if port == 80 {
+            bracketed
+        } else {
+            format!("{bracketed}:{port}")
+        };
         Ok(Client {
             authority,
             addrs,
@@ -79,8 +87,14 @@ impl Client {
 
     /// Minimal HTTP/1.1 to the daemon — no TLS, no keep-alive, no
     /// chunked bodies (the daemon answers with Content-Length).
-    fn request(&self, method: &str, path: &str, body: Option<&str>) -> Result<(u16, String), String> {
-        let mut stream = TcpStream::connect(&self.addrs[..]).map_err(|e| format!("connect: {e}"))?;
+    fn request(
+        &self,
+        method: &str,
+        path: &str,
+        body: Option<&str>,
+    ) -> Result<(u16, String), String> {
+        let mut stream =
+            TcpStream::connect(&self.addrs[..]).map_err(|e| format!("connect: {e}"))?;
         stream.set_read_timeout(Some(Duration::from_secs(30))).ok();
         stream.set_write_timeout(Some(Duration::from_secs(30))).ok();
         let body = body.unwrap_or("");
@@ -91,9 +105,13 @@ impl Client {
             self.key(),
             body.len(),
         );
-        stream.write_all(req.as_bytes()).map_err(|e| format!("write: {e}"))?;
+        stream
+            .write_all(req.as_bytes())
+            .map_err(|e| format!("write: {e}"))?;
         let mut raw = Vec::new();
-        stream.read_to_end(&mut raw).map_err(|e| format!("read: {e}"))?;
+        stream
+            .read_to_end(&mut raw)
+            .map_err(|e| format!("read: {e}"))?;
         let text = String::from_utf8_lossy(&raw);
         let status: u16 = text
             .split_whitespace()
@@ -108,7 +126,9 @@ impl Client {
     }
 
     fn kv_get(&self, k: &str) -> Option<Value> {
-        let (status, body) = self.request("GET", &format!("/v1/plugins/self/kv/{k}"), None).ok()?;
+        let (status, body) = self
+            .request("GET", &format!("/v1/plugins/self/kv/{k}"), None)
+            .ok()?;
         if status != 200 {
             return None;
         }
@@ -120,14 +140,20 @@ impl Client {
     }
 
     fn kv_put(&self, k: &str, v: &Value) {
-        let _ = self.request("PUT", &format!("/v1/plugins/self/kv/{k}"), Some(&v.to_string()));
+        let _ = self.request(
+            "PUT",
+            &format!("/v1/plugins/self/kv/{k}"),
+            Some(&v.to_string()),
+        );
     }
 
     fn file_get(&self, path: &str) -> Option<Value> {
         let (status, body) = self
             .request("GET", &format!("/v1/plugins/self/files/{path}"), None)
             .ok()?;
-        (status == 200).then(|| serde_json::from_str(&body).ok()).flatten()
+        (status == 200)
+            .then(|| serde_json::from_str(&body).ok())
+            .flatten()
     }
 
     fn file_put(&self, path: &str, v: &Value) {
@@ -193,13 +219,15 @@ fn daemon_addrs(host: &str, port: u16, allow_remote: bool) -> Result<Vec<SocketA
 }
 
 fn env_flag(name: &str) -> bool {
-    std::env::var(name).is_ok_and(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
+    std::env::var(name)
+        .is_ok_and(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
 }
 
 /// `s` without `prefix`, compared ASCII-case-insensitively.
 fn strip_prefix_ci<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
     let head = s.get(..prefix.len())?;
-    head.eq_ignore_ascii_case(prefix).then(|| &s[prefix.len()..])
+    head.eq_ignore_ascii_case(prefix)
+        .then(|| &s[prefix.len()..])
 }
 
 /// System idle seconds via IOKit's HIDIdleTime (nanoseconds).
@@ -241,7 +269,13 @@ fn frontmost_app() -> Option<String> {
 
 /// Browsers whose AppleScript windows carry Chromium's `mode` property
 /// ("normal" or "incognito", per each app's scripting dictionary).
-const CHROMIUM: &[&str] = &["Google Chrome", "Brave Browser", "Microsoft Edge", "Arc", "Chromium"];
+const CHROMIUM: &[&str] = &[
+    "Google Chrome",
+    "Brave Browser",
+    "Microsoft Edge",
+    "Arc",
+    "Chromium",
+];
 
 /// The AppleScript that reads the frontmost browser's active-tab URL,
 /// or None for a browser we can't read (Firefox has no scripting URL
@@ -285,7 +319,10 @@ fn browser_script(app: &str) -> Option<String> {
 /// permission denied, no window, a window the script won't read) is None.
 fn browser_url(app: &str) -> Option<String> {
     let script = browser_script(app)?;
-    let out = Command::new("osascript").args(["-e", &script]).output().ok()?;
+    let out = Command::new("osascript")
+        .args(["-e", &script])
+        .output()
+        .ok()?;
     if !out.status.success() {
         return None;
     }
@@ -323,7 +360,9 @@ fn registrable_domain(host: &str) -> String {
     if labels.len() <= 2 {
         return host.to_string();
     }
-    const SLD: &[&str] = &["co.uk", "org.uk", "ac.uk", "com.au", "co.jp", "co.nz", "com.br"];
+    const SLD: &[&str] = &[
+        "co.uk", "org.uk", "ac.uk", "com.au", "co.jp", "co.nz", "com.br",
+    ];
     let tail2 = labels[labels.len() - 2..].join(".");
     let n = if SLD.contains(&tail2.as_str()) { 3 } else { 2 };
     labels[labels.len() - n..].join(".")
@@ -391,7 +430,11 @@ fn tz_offset_minutes() -> i64 {
             let (sign, rest) = s.split_at(1);
             let h: i64 = rest.get(0..2)?.parse().ok()?;
             let m: i64 = rest.get(2..4)?.parse().ok()?;
-            Some(if sign == "-" { -(h * 60 + m) } else { h * 60 + m })
+            Some(if sign == "-" {
+                -(h * 60 + m)
+            } else {
+                h * 60 + m
+            })
         })
         .unwrap_or(0)
 }
@@ -438,7 +481,11 @@ impl Day {
     fn from_state(v: &Value) -> Option<Day> {
         Some(Day {
             date: v.get("date")?.as_str()?.to_string(),
-            host: v.get("host").and_then(|h| h.as_str()).unwrap_or_default().to_string(),
+            host: v
+                .get("host")
+                .and_then(|h| h.as_str())
+                .unwrap_or_default()
+                .to_string(),
             per_app: v
                 .get("per_app")?
                 .as_object()?
@@ -448,12 +495,20 @@ impl Day {
             per_hour: v
                 .get("per_hour")
                 .and_then(|h| h.as_object())
-                .map(|m| m.iter().map(|(k, n)| (k.clone(), n.as_u64().unwrap_or(0))).collect())
+                .map(|m| {
+                    m.iter()
+                        .map(|(k, n)| (k.clone(), n.as_u64().unwrap_or(0)))
+                        .collect()
+                })
                 .unwrap_or_default(),
             per_domain: v
                 .get("per_domain")
                 .and_then(|h| h.as_object())
-                .map(|m| m.iter().map(|(k, n)| (k.clone(), n.as_u64().unwrap_or(0))).collect())
+                .map(|m| {
+                    m.iter()
+                        .map(|(k, n)| (k.clone(), n.as_u64().unwrap_or(0)))
+                        .collect()
+                })
                 .unwrap_or_default(),
         })
     }
@@ -507,7 +562,12 @@ fn flush_day(client: &Client, day: &Day) {
         }],
     });
     match client.request("POST", "/v1/ingest", Some(&batch.to_string())) {
-        Ok((200, _)) => eprintln!("hpresence: flushed {} on {} ({})", day.date, day.host, fmt_hm(day.total())),
+        Ok((200, _)) => eprintln!(
+            "hpresence: flushed {} on {} ({})",
+            day.date,
+            day.host,
+            fmt_hm(day.total())
+        ),
         Ok((status, body)) => eprintln!("hpresence: ingest answered {status}: {body}"),
         Err(e) => eprintln!("hpresence: ingest failed: {e}"),
     }
@@ -522,7 +582,9 @@ fn write_history(client: &Client, day: &Day) {
     }
     let month = &day.date[..7];
     let path = format!("history/{}/{month}.json", day.host);
-    let mut doc = client.file_get(&path).unwrap_or_else(|| json!({"days": {}}));
+    let mut doc = client
+        .file_get(&path)
+        .unwrap_or_else(|| json!({"days": {}}));
     doc["days"][&day.date] = json!({
         "per_app": day.per_app,
         "per_hour": day.per_hour,
@@ -538,14 +600,19 @@ fn update_recent(client: &Client, day: &Day) {
         .kv_get("recent")
         .and_then(|v| v.as_array().cloned())
         .unwrap_or_default();
-    recent.retain(|d| !(d.get("date").and_then(|x| x.as_str()) == Some(day.date.as_str())
-        && d.get("host").and_then(|x| x.as_str()).unwrap_or("") == day.host));
+    recent.retain(|d| {
+        !(d.get("date").and_then(|x| x.as_str()) == Some(day.date.as_str())
+            && d.get("host").and_then(|x| x.as_str()).unwrap_or("") == day.host)
+    });
     recent.push(day.to_state());
     recent.sort_by(|a, b| {
-        a.get("date").and_then(|x| x.as_str()).unwrap_or("")
+        a.get("date")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
             .cmp(b.get("date").and_then(|x| x.as_str()).unwrap_or(""))
     });
-    let hosts = recent.iter()
+    let hosts = recent
+        .iter()
         .filter_map(|d| d.get("host").and_then(|h| h.as_str()))
         .collect::<std::collections::BTreeSet<_>>()
         .len()
@@ -607,10 +674,16 @@ fn main() {
                     interval = n.clamp(10, 300);
                 }
                 if let Some(list) = cfg.get("ignore").and_then(|v| v.as_array()) {
-                    ignore = list.iter().filter_map(|v| v.as_str().map(String::from)).collect();
+                    ignore = list
+                        .iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect();
                 }
                 if let Some(list) = cfg.get("track_browsers").and_then(|v| v.as_array()) {
-                    track_browsers = list.iter().filter_map(|v| v.as_str().map(String::from)).collect();
+                    track_browsers = list
+                        .iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect();
                 }
                 if let Some(list) = cfg.get("exclude_domains").and_then(|v| v.as_array()) {
                     exclude_domains = list
@@ -638,7 +711,9 @@ fn main() {
                     // toward the active tab's DOMAIN (merged across
                     // browsers); excluded sites are never written
                     if track_browsers.iter().any(|b| b.eq_ignore_ascii_case(&app)) {
-                        if let Some(domain) = browser_url(&app).and_then(|url| domain_of(&url, &exclude_domains)) {
+                        if let Some(domain) =
+                            browser_url(&app).and_then(|url| domain_of(&url, &exclude_domains))
+                        {
                             *day.per_domain.entry(domain).or_insert(0) += interval;
                         }
                     }
@@ -718,10 +793,16 @@ mod tests {
 
     #[test]
     fn domain_of_keeps_ip_literals_whole() {
-        assert_eq!(site("http://192.168.1.10:8080/admin").as_deref(), Some("192.168.1.10"));
+        assert_eq!(
+            site("http://192.168.1.10:8080/admin").as_deref(),
+            Some("192.168.1.10")
+        );
         assert_eq!(site("http://127.0.0.1/").as_deref(), Some("127.0.0.1"));
         assert_eq!(site("http://[::1]:8080/").as_deref(), Some("::1"));
-        assert_eq!(site("https://[2001:db8::1]/x").as_deref(), Some("2001:db8::1"));
+        assert_eq!(
+            site("https://[2001:db8::1]/x").as_deref(),
+            Some("2001:db8::1")
+        );
     }
 
     #[test]
@@ -736,7 +817,15 @@ mod tests {
         .iter()
         .filter_map(|e| exclusion_host(e))
         .collect();
-        assert_eq!(excluded, ["example.com", "private.org", "mail.example.net", "wiki.test"]);
+        assert_eq!(
+            excluded,
+            [
+                "example.com",
+                "private.org",
+                "mail.example.net",
+                "wiki.test"
+            ]
+        );
         for url in [
             "https://example.com/",
             "https://www.example.com/a",
@@ -747,9 +836,15 @@ mod tests {
         ] {
             assert_eq!(domain_of(url, &excluded), None, "{url}");
         }
-        assert_eq!(domain_of("https://notexample.com/", &excluded).as_deref(), Some("notexample.com"));
+        assert_eq!(
+            domain_of("https://notexample.com/", &excluded).as_deref(),
+            Some("notexample.com")
+        );
         // excluding one subdomain leaves its siblings recorded
-        assert_eq!(domain_of("https://docs.example.net/", &excluded).as_deref(), Some("example.net"));
+        assert_eq!(
+            domain_of("https://docs.example.net/", &excluded).as_deref(),
+            Some("example.net")
+        );
     }
 
     #[test]
@@ -768,9 +863,14 @@ mod tests {
     fn chromium_scripts_read_only_normal_windows() {
         for app in CHROMIUM {
             let script = browser_script(app).unwrap();
-            let gate = script.find("if (mode of w) is not \"normal\" then return \"\"").unwrap();
+            let gate = script
+                .find("if (mode of w) is not \"normal\" then return \"\"")
+                .unwrap();
             let read = script.find("return URL of active tab of w").unwrap();
-            assert!(gate < read, "{app}: the URL must be read after the mode check");
+            assert!(
+                gate < read,
+                "{app}: the URL must be read after the mode check"
+            );
             assert!(script.contains("set w to front window"), "{app}");
         }
         assert!(browser_script("Safari").is_some());
@@ -780,10 +880,22 @@ mod tests {
 
     #[test]
     fn base_url_must_be_plain_http() {
-        assert_eq!(parse_base_url("http://127.0.0.1:43278"), Ok(("127.0.0.1".into(), 43278)));
-        assert_eq!(parse_base_url("http://127.0.0.1:43278/"), Ok(("127.0.0.1".into(), 43278)));
-        assert_eq!(parse_base_url("HTTP://localhost"), Ok(("localhost".into(), 80)));
-        assert_eq!(parse_base_url("http://[::1]:43278"), Ok(("::1".into(), 43278)));
+        assert_eq!(
+            parse_base_url("http://127.0.0.1:43278"),
+            Ok(("127.0.0.1".into(), 43278))
+        );
+        assert_eq!(
+            parse_base_url("http://127.0.0.1:43278/"),
+            Ok(("127.0.0.1".into(), 43278))
+        );
+        assert_eq!(
+            parse_base_url("HTTP://localhost"),
+            Ok(("localhost".into(), 80))
+        );
+        assert_eq!(
+            parse_base_url("http://[::1]:43278"),
+            Ok(("::1".into(), 43278))
+        );
         for url in [
             "https://127.0.0.1:43278",
             "127.0.0.1:43278",
@@ -818,6 +930,9 @@ mod tests {
         assert_eq!(day.total(), 180);
         assert!(day.per_domain.is_empty());
         let again = Day::from_state(&day.to_state()).unwrap();
-        assert_eq!((again.host.as_str(), again.per_app, again.per_hour), ("studio", day.per_app, day.per_hour));
+        assert_eq!(
+            (again.host.as_str(), again.per_app, again.per_hour),
+            ("studio", day.per_app, day.per_hour)
+        );
     }
 }
