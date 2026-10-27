@@ -1,0 +1,3 @@
+# Formatting-only commits, skipped by `git blame` (git config blame.ignoreRevsFile .git-blame-ignore-revs) and by GitHub.
+# rustfmt, 2026-10-26
+473ebaabcce8ae2f2f70fbcccb5dd91e3c53638b

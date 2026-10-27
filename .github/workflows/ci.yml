@@ -1,7 +1,7 @@
-# Build, clippy (warnings are errors) and tests on an Apple-silicon Mac,
-# the only platform the sampler runs on, then assemble the package with
-# build.sh and check that the manifest parses. CodeQL runs separately
-# (default setup).
+# Formatting, build, clippy (warnings are errors) and tests on an
+# Apple-silicon Mac, the only platform the sampler runs on, then assemble
+# the package with build.sh and check that the manifest parses. CodeQL
+# (default setup) and the dependency audit (audit.yml) run separately.
 name: CI
 
 on:
@@ -30,7 +30,9 @@ jobs:
         with:
           persist-credentials: false
       - name: Install Rust (stable, per rust-toolchain.toml)
-        run: rustup toolchain install stable --profile minimal --component clippy --target aarch64-apple-darwin --no-self-update
+        run: rustup toolchain install stable --profile minimal --component clippy --component rustfmt --target aarch64-apple-darwin --no-self-update
+      - name: Formatting
+        run: cargo fmt --all --check
       - name: Build
         run: cargo build --locked
       - name: Clippy
