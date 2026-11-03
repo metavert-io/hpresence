@@ -9,13 +9,14 @@
 </style></head>
 <body>
   <div id="w" class="faint">…</div>
-<script src="hearth.js"></script>
+<script src="/assets/ember.js"></script>
+<script src="util.js"></script>
 <script>
 (async () => {
   const h = await window.hearth;
   const hosts = (await h.kv("hosts")) || [];
   const states = (await Promise.all(
-    hosts.map((n) => h.kv(`state:${n}`)))).filter(Boolean);
+    hosts.map((n) => h.kv(`state:${n}`).catch(() => null)))).filter(Boolean);
   const state = states.length ? {
     total_active_secs: states.reduce((a, s) => a + (s.total_active_secs || 0), 0),
     per_app: states.reduce((m, s) => {

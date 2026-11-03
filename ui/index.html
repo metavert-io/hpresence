@@ -17,13 +17,14 @@
   <div id="today">waiting for the hearth…</div>
   <h2 style="margin-top:28px">recent days</h2>
   <div id="recent" class="faint">…</div>
-<script src="hearth.js"></script>
+<script src="/assets/ember.js"></script>
+<script src="util.js"></script>
 <script>
 (async () => {
   const h = await window.hearth;
   const hosts = (await h.kv("hosts")) || [];
   const states = (await Promise.all(
-    hosts.map((n) => h.kv(`state:${n}`)))).filter(Boolean);
+    hosts.map((n) => h.kv(`state:${n}`).catch(() => null)))).filter(Boolean);
   const today = states.length ? states[0].date : null;
   const state = states.length ? {
     date: today,

@@ -3,7 +3,7 @@
 # deps, talks only to the loopback HTTP API with its scoped key).
 [package]
 name = "hpresence"
-version = "0.7.1"
+version = "0.7.2"
 edition = "2021"
 rust-version = "1.78"
 description = "Presence sampler for Hearthloom: frontmost app, idle state and, for browsers you choose, website domains, summarised once a day per Mac"

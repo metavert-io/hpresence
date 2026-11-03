@@ -161,7 +161,7 @@ in the Hearthloom repo.
 | dependency-free loopback HTTP client (no SDK) | `Client` in `src/main.rs` |
 | daily episode with a deterministic, idempotent ref | `flush_day()` |
 | self-storage: KV (state, config, 14-day rollup) and files (monthly history) | `kv_get`/`kv_put`, `write_history()` |
-| sandbox handshake for UI pages | `ui/hearth.js` |
+| sandbox handshake for UI pages | the node's `/assets/ember.js` (Hearthloom ≥ 0.5.74) |
 | card page, Visualize page, Desk widget | `ui/index.html`, `ui/heat.html`, `ui/widget.html` |
 
 To start your own ember from this one, change `name` and `publisher` in

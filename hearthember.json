@@ -1,7 +1,7 @@
 {
   "protocol": 1,
   "name": "hpresence",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "publisher": "jon",
   "description": "Records which app is frontmost, whether you're idle and, only in browsers you choose, each site's domain (never its path or title), as daily totals per Mac; no screenshots, audio or keystrokes.",
   "scopes": [
@@ -67,6 +67,6 @@
     }
   ],
   "requires": {
-    "host": ">=0.5.71"
+    "host": ">=0.5.74"
   }
 }

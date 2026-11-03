@@ -25,7 +25,8 @@
   <div id="sites" class="chart"></div>
   <div id="punch" class="chart"></div>
   <div id="tip"></div>
-<script src="hearth.js"></script>
+<script src="/assets/ember.js"></script>
+<script src="util.js"></script>
 <script src="/assets/chart-svg.js"></script>
 <script>
 (async () => {
@@ -53,7 +54,7 @@
       for (const month of monthsBetween(from, to)) {
         const key = `${host}/${month}`;
         if (!(key in cache)) {
-          cache[key] = await h.fileGet(`history/${host}/${month}.json`);
+          cache[key] = await h.fileGet(`history/${host}/${month}.json`).catch(() => null);
         }
         const doc = cache[key];
         if (!doc?.days) continue;

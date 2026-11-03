@@ -1,7 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.7.2 — 2026-11-02
 
+- **The pages use the node's own handshake, `/assets/ember.js`.** Instead of
+  a copy of the handshake in `ui/hearth.js`, every page now loads the one
+  Hearthloom serves to all embers. It believes only the dashboard (not a
+  sibling frame, a window that opened the page, or a site framing it) and
+  always talks to the node that served the page, so a fix there reaches
+  this ember with a Hearthloom release. Needs Hearthloom 0.5.74 or later.
 - **The pages accept the dashboard's handshake only from its own origin.**
   They already ignored messages from any window but the one embedding
   them; a site that framed a page itself would have been that window. The
